@@ -1,0 +1,64 @@
+pipeline {
+    agent any
+    environment {
+        PYTHON_EXE = "C:\\Users\\Manas Patekar\\AppData\\Local\\Programs\\Python\\Python313\\python.exe"
+    }
+    stages {
+        stage('Prepare Test File') {
+            steps {
+                script {
+                    writeFile file: 'selenium_test_sample.py', text: '''\
+import unittest
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+
+class SimpleTest(unittest.TestCase):
+    def setUp(self):
+        options = Options()
+        options.add_argument("--headless")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+
+    def test_python_org(self):
+        self.driver.get("https://www.python.org")
+        print("Page title:", self.driver.title)
+        self.assertIn("Python", self.driver.title)
+        search_box = self.driver.find_element(By.NAME, "q")
+        search_box.send_keys("pytest")
+        search_box.submit()
+        self.assertIn("Python", self.driver.title)
+
+    def tearDown(self):
+        self.driver.quit()
+
+if __name__ == "__main__":
+    unittest.main()
+'''
+                }
+            }
+        }
+
+        stage('Install dependencies') {
+            steps {
+                bat "\"${env.PYTHON_EXE}\" -m pip install --upgrade pip selenium webdriver-manager"
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                bat "\"${env.PYTHON_EXE}\" selenium_test_sample.py"
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Cleaning up workspace...'
+            deleteDir()
+        }
+    }
+}
